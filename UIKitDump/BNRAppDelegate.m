@@ -7,40 +7,95 @@
 //
 
 #import "BNRAppDelegate.h"
+@import ObjectiveC.runtime;
 
 @implementation BNRAppDelegate
 
+NSArray *BNRHierarchyForClass(Class cls) {
+	
+	// Declare an array to hold the list of
+	// this class and all its superclasses, building a hierarchy
+	NSMutableArray *classHierarchy = [NSMutableArray array];
+	
+	// Keep climbing the class hierarchy until we get to a class with no superclass
+	for (Class c = cls; c != Nil; c = class_getSuperclass(c)) {
+		NSString *className = NSStringFromClass(c);
+		[classHierarchy insertObject:className atIndex:0];
+	}
+	
+	return classHierarchy;
+}
+
+NSArray *BNRMethodsForClass(Class cls) {
+	
+	unsigned int methodCount = 0;
+    
+	Method *methodList = class_copyMethodList(cls, &methodCount);
+	
+	NSMutableArray *methodArray = [NSMutableArray array];
+    
+	for (int m = 0; m < methodCount; m++) {
+		// Get the current Method
+		Method currentMethod = methodList[m];
+		// Get the selector for the current method
+		SEL methodSelector = method_getName(currentMethod);
+		// Add its string representation to the array
+		[methodArray addObject:NSStringFromSelector(methodSelector)];
+	}
+	
+	return methodArray;
+}
+
+- (void)dumpAllTheThings
+{
+    // Create an an array of dictionaries, where each dictionary
+    // will end up holding the class name, hierarchy, and method list
+    // for a given class
+    NSMutableArray *runtimeClassesInfo = [NSMutableArray array];
+    
+    // Declare a variable to hold the number of registered classes
+    unsigned int classCount = 0;
+    
+    // Get a pointer to a list of all registered classes
+    // currently loaded by your application
+    // The number of registered classes is returned by reference
+    Class *classList = objc_copyClassList(&classCount);
+    
+    // For each class in the list...
+    for (int i = 0; i < classCount; i++) {
+        
+        // Treat the classList as a C array to get a Class from it
+        Class currentClass = classList[i];
+        
+        // Get the class' name as a string
+        NSString *className = NSStringFromClass(currentClass);
+        
+        NSArray *hierarchy = BNRHierarchyForClass(currentClass);
+        
+        NSArray *methods = BNRMethodsForClass(currentClass);
+        
+        NSDictionary *classInfoDict = @{	@"classname" : className,
+                                            @"hierarchy" : hierarchy,
+                                            @"methods"   : methods };
+        
+        [runtimeClassesInfo addObject:classInfoDict];
+    }
+    
+    // We're done with the class list buffer, so free it
+    free(classList);
+    
+    // Sort the classes info array alphabetically by name, and log it.
+    NSSortDescriptor *alphaAsc = [NSSortDescriptor sortDescriptorWithKey:@"name"
+                                                               ascending:YES];
+    NSArray *sortedArray = [runtimeClassesInfo sortedArrayUsingDescriptors:@[alphaAsc]];
+    NSLog(@"There are %lu classes registered with this program's Runtime.",(unsigned long)sortedArray.count);
+    NSLog(@"%@",sortedArray);
+}
+
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
-    // Override point for customization after application launch.
+    [self dumpAllTheThings];
     return YES;
 }
 							
-- (void)applicationWillResignActive:(UIApplication *)application
-{
-    // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
-    // Use this method to pause ongoing tasks, disable timers, and throttle down OpenGL ES frame rates. Games should use this method to pause the game.
-}
-
-- (void)applicationDidEnterBackground:(UIApplication *)application
-{
-    // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later. 
-    // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
-}
-
-- (void)applicationWillEnterForeground:(UIApplication *)application
-{
-    // Called as part of the transition from the background to the inactive state; here you can undo many of the changes made on entering the background.
-}
-
-- (void)applicationDidBecomeActive:(UIApplication *)application
-{
-    // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
-}
-
-- (void)applicationWillTerminate:(UIApplication *)application
-{
-    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-}
-
 @end
